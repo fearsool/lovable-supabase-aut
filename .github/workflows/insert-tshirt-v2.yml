@@ -13,7 +13,18 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: '18'
-      - run: node index.js
+    jobs:
+  run-script:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v3
+        with: node-version: '18'
+      - name: Install dependencies
+        run: npm install
+      - name: Run insert script
+        run: node index.js
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+
