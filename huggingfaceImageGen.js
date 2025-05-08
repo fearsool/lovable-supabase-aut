@@ -1,4 +1,4 @@
-name: Generate Image from Hugging Face
+
 
 on:
   workflow_dispatch:
