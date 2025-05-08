@@ -1,0 +1,26 @@
+name: Etsy Ürünleri Çek
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fetch-etsy-products:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Repo'yu klonla
+        uses: actions/checkout@v3
+
+      - name: Node.js kur
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Gerekli paketleri yükle
+        run: npm install axios dotenv
+
+      - name: Etsy ürünlerini çek
+        run: node etsyGetListings.js
+        env:
+          ETSY_API_KEY: ${{ secrets.ETSY_API_KEY }}
+          ETSY_OAUTH_TOKEN: ${{ secrets.ETSY_OAUTH_TOKEN }}
