@@ -1,29 +1,26 @@
-import axios from 'axios';
-import * as dotenv from 'dotenv';
+name: Generate Image from Hugging Face
 
-dotenv.config();
+on:
+  workflow_dispatch:
 
-const hfToken = process.env.HUGGINGFACE_API_TOKEN;
+jobs:
+  run-huggingface-script:
+    runs-on: ubuntu-latest
 
-async function generateImage() {
-  try {
-    const response = await axios.post(
-      'https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-2',
-      {
-        inputs: 'retro vintage t-shirt illustration of peaceful nature and stars',
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${hfToken}`,
-        },
-      }
-    );
+    steps:
+      - name: Kodları indir
+        uses: actions/checkout@v2
 
-    console.log('Görsel başarıyla üretildi!');
-    console.log(response.data);
-  } catch (error) {
-    console.error('Görsel üretiminde hata oluştu:', error.response?.data || error.message);
-  }
-}
+      - name: Node.js ortamı kur
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
 
-generateImage();
+      - name: Paketleri kur (axios)
+        run: npm install axios
+
+      - name: .env dosyasını yükle
+        run: echo "HUGGINGFACE_API_TOKEN=${{ secrets.HUGGINGFACE_API_TOKEN }}" > .env
+
+      - name: Görsel Üret
+        run: node huggingfaceImageGen.js
