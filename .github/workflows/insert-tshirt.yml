@@ -1,29 +1,29 @@
 
-name: Daily Insert T-Shirt
+name: Generate Image from Hugging Face
 
 on:
-  schedule:
-    - cron: '0 8 * * *' # Runs daily at 08:00 UTC
-  workflow_dispatch: # Allows manual dispatch of the workflow
+  workflow_dispatch:
 
 jobs:
-  execute:
+  run-huggingface-script:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check out repository
+      - name: Kodları indir
         uses: actions/checkout@v3
 
-      - name: Set up Node.js 18
+      - name: Node.js ortamı kur
         uses: actions/setup-node@v3
         with:
           node-version: 18
 
-      - name: Install dependencies
+      - name: Paketleri kur
         run: npm install
 
-      - name: Execute index.js
+      - name: Axios'u yükle
+        run: npm install axios
+
+      - name: Görsel Üret
+        run: node huggingfaceImageGen.js
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-        run: node index.js
+          HUGGINGFACE_API_TOKEN: ${{ secrets.HUGGINGFACE_API_TOKEN }}
