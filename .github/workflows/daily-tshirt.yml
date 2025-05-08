@@ -1,0 +1,31 @@
+name: Daily T-Shirt Automation
+
+on:
+  schedule:
+    - cron: '0 8 * * *'  # Her sabah 08:00'de çalışır (UTC)
+  workflow_dispatch:     # Manuel çalıştırmak için
+
+jobs:
+  run-daily-process:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Kodları indir
+        uses: actions/checkout@v3
+
+      - name: Node ortamını kur
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Paketleri kur
+        run: npm install
+
+      - name: Görsel Üret (huggingfaceImageGen.js)
+        run: node huggingfaceImageGen.js
+
+      - name: Supabase’e Görsel Yükle (uploadToSupabase.js)
+        run: node uploadToSupabase.js
+
+      - name: Veriyi Kaydet (index.js)
+        run: node index.js
