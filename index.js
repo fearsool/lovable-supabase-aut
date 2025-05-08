@@ -8,17 +8,26 @@ const supabase = createClient(
   process.env.SUPABASE_KEY
 );
 
-async function uploadTshirt(data) {
-  const { error } = await supabase
+const tshirt = {
+  title: 'Gökyüzü ve Elif Temalı Tişört',
+  description: 'Etkileyici ve hayal gücünü tetikleyen bir tasarım. Elif’in gökyüzüyle buluştuğu an.',
+  tags: ['elif', 'gökyüzü', 'hayal', 'çocuk'],
+  image_urls: ['https://dousxupktshpnjojvlib.supabase.co/storage/v1/object/public/images/IMG_4976.jpeg'],
+  color_variants: ['white'],
+  cta: 'Hayal et, giy, yaşa.',
+  report_data: { views: 0, clicks: 0, orders: 0 }
+};
+
+async function insertTshirt() {
+  const { data, error } = await supabase
     .from('tshirts')
-    .insert([data]);
-  if (error) console.error('Upload failed:', error.message);
-  else console.log('T-shirt uploaded!');
+    .insert([tshirt]);
+
+  if (error) {
+    console.error('Hata:', error);
+  } else {
+    console.log('Başarıyla eklendi:', data);
+  }
 }
 
-// Örnek çağrı:
-uploadTshirt({
-  quote: 'Hello World!',
-  image_url: 'https://…',
-  created_at: new Date().toISOString()
-});
+insertTshirt();
