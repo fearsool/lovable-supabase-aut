@@ -1,14 +1,22 @@
 {
   "name": "lovable-supabase-aut",
   "version": "1.0.0",
+  "description": "Lovable AI Core Etsy otomasyon sistemi",
+  "main": "uploadToEtsy.js",
   "type": "module",
-  "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node uploadToEtsy.js"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.39.5",
-    "dotenv": "^16.3.1",
-    "axios": "^1.6.5"
-  }
+    "node-fetch": "^3.3.2",
+    "dotenv": "^16.0.3"
+  },
+  "keywords": [
+    "etsy",
+    "automation",
+    "ai",
+    "nodejs"
+  ],
+  "author": "Ali",
+  "license": "MIT"
 }
