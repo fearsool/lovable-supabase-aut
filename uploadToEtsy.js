@@ -2,8 +2,6 @@
 import fetch from 'node-fetch';
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
-
-// Çevresel değişkenleri yükle
 dotenv.config();
 
 // Supabase bağlantısı
@@ -12,13 +10,17 @@ const supabase = createClient(
   process.env.SUPABASE_KEY
 );
 
-// Etsy Shop ID ve Erişim Token'ı
 const shopId = process.env.ETSY_SHOP_ID;
 const accessToken = process.env.ETSY_ACCESS_TOKEN;
 
+// Etsy API için gerekli sabitler
+const ETST_API_URL = 'https://api.etsy.com/v3/application';
+const TAXONOMY_ID = 1032; // Clothing > Unisex Adult T-shirts
+const COLOR_PROPERTY_ID = 513; // Etsy'de renk varyasyonu ID'si
+
 const createListing = async () => {
   try {
-    // 1. Supabase’den "pending" durumundaki kayıtları çek
+    // 1. Supabase'den pending durumdaki kayıtları çek
     const { data: pendingItems, error } = await supabase
       .from('tshirts')
       .select('*')
@@ -26,101 +28,109 @@ const createListing = async () => {
       .limit(5); // Etsy API rate limiti için
 
     if (error) throw new Error(`Supabase error: ${error.message}`);
-    if (!pendingItems.length) return console.log('Hiç bekleyen liste yok.');
-
-    // 2. Aynı tasarımın varyasyonlarını grupla
-    const groupedItems = {};
-    for (const item of pendingItems) {
-      const baseTitle = item.title.split(' • ')[0]; // Örneğin: "Minimalist UFO T-Shirt • Pastel" → "Minimalist UFO T-Shirt"
-      if (!groupedItems[baseTitle]) {
-        groupedItems[baseTitle] = [];
-      }
-      groupedItems[baseTitle].push(item);
+    if (!pendingItems.length) {
+      console.log('No pending listings.');
+      return;
     }
 
-    // 3. Her grup için Etsy listesi oluştur
-    for (const baseTitle in groupedItems) {
-      const variants = groupedItems[baseTitle];
-      if (variants.length !== 5) {
-        console.warn(`Uyarı: ${baseTitle} için ${variants.length} varyasyon var (5 olması bekleniyor). Atlanıyor...`);
-        continue; // 5 varyasyon yoksa atla
+    // 2. Varyasyonları ana başlığa göre grupla
+    const groupedItems = pendingItems.reduce((acc, item) => {
+      const baseTitle = item.title.split(' • ')[0]; // "Minimalist UFO T-Shirt • Pastel" → "Minimalist UFO T-Shirt"
+      if (!acc[baseTitle]) {
+        acc[baseTitle] = [];
       }
+      acc[baseTitle].push(item);
+      return acc;
+    }, {});
 
-      const url = `https://api.etsy.com/v3/application/shops/${shopId}/listings`;
+    // 3. Her grup için Etsy listesi oluştur
+    for (const [baseTitle, variants] of Object.entries(groupedItems)) {
+      if (variants.length === 0) continue;
 
+      // 4. Varyasyon verilerini hazırla
+      const variations = [{
+        property_id: COLOR_PROPERTY_ID,
+        values: variants.map(variant => ({
+          value: variant.title.split(' • ')[1]?.trim() || 'Default',
+          price: Number(variant.price),
+          quantity: Number(variant.quantity) || 20,
+          image_url: variant.image_url
+        }))
+      }];
+
+      // 5. Ana listing verileri
       const listingData = {
-        title: baseTitle, // Örneğin: "Minimalist UFO T-Shirt"
-        description: variants[0].description, // İlk varyasyonun açıklamasını kullan
-        price: variants[0].price, // İlk varyasyonun fiyatını kullan
-        quantity: 100, // Toplam stok (her varyasyon için ayrı ayrı belirlenecek)
-        taxonomy_id: 1032, // Örnek kategori: Clothing > Unisex Adult T-shirts
-        tags: variants[0].tags || ['ai-generated', 'tshirt', 'ufo'],
+        title: baseTitle,
+        description: variants[0].description || 'AI designed t-shirt',
+        price: Number(variants[0].price),
+        quantity: variants.reduce((sum, v) => sum + (Number(v.quantity) || 20), 0),
+        taxonomy_id: TAXONOMY_ID,
+        tags: variants[0].tags?.split(',') || ['ai-generated', 'tshirt'],
         type: 'physical',
         who_made: 'i_did',
         is_supply: false,
         when_made: 'made_to_order',
-        image_urls: [], // Görselleri varyasyonlarla eşleştireceğiz
+        variations
       };
 
-      // 4. Varyasyonları tanımla
-      const variations = [
-        {
-          property_id: 513, // Etsy’de "Color" özelliği için property_id
-          values: variants.map((variant, index) => ({
-            value: variant.title.split(' • ')[1] || `Variant ${index + 1}`, // Örneğin: "Pastel", "Retro"
-            price: variant.price,
-            quantity: variant.quantity || 20,
-            image_url: variant.image_url, // Her varyasyon için ayrı görsel
-          })),
-        },
-      ];
-
       try {
-        const response = await fetch(url, {
+        // 6. Etsy API'ye istek gönder
+        const response = await fetch(`${ETST_API_URL}/shops/${shopId}/listings`, {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${accessToken}`,
+            'Authorization': `Bearer ${accessToken}`,
             'Content-Type': 'application/json',
-            'Accept': 'application/json',
+            'Accept': 'application/json'
           },
-          body: JSON.stringify({ ...listingData, variations }),
+          body: JSON.stringify(listingData)
         });
 
         const data = await response.json();
 
         if (!response.ok) {
-          console.error(`Hata oluştu (ürün: ${baseTitle}):`, data);
-          // Hata durumunda tüm varyasyonları güncelle
-          for (const variant of variants) {
-            await supabase
-              .from('tshirts')
-              .update({ status: 'error', error_log: JSON.stringify(data) })
-              .eq('id', variant.id);
-          }
-        } else {
-          console.log(`Başarıyla yüklendi (${baseTitle} with ${variants.length} variations):`, data);
-          // Başarılıysa tüm varyasyonların status’ünü güncelle
-          for (const variant of variants) {
-            await supabase
-              .from('tshirts')
-              .update({ status: 'published', etsy_id: data.listing_id })
-              .eq('id', variant.id);
-          }
+          throw new Error(data.message || 'Etsy API error');
         }
+
+        // 7. Başarılıysa Supabase'de durumu güncelle
+        await Promise.all(
+          variants.map(variant => 
+            supabase
+              .from('tshirts')
+              .update({ 
+                status: 'published', 
+                etsy_id: data.listing_id,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', variant.id)
+          )
+        );
+
+        console.log(`Successfully created listing: ${data.listing_id} with ${variants.length} variants`);
+
       } catch (error) {
-        console.error(`İstek sırasında hata (${baseTitle}):`, error);
-        for (const variant of variants) {
-          await supabase
-            .from('tshirts')
-            .update({ status: 'error', error_log: error.message })
-            .eq('id', variant.id);
-        }
+        console.error(`Error creating listing for ${baseTitle}:`, error.message);
+        
+        // 8. Hata durumunda kayıtları güncelle
+        await Promise.all(
+          variants.map(variant => 
+            supabase
+              .from('tshirts')
+              .update({ 
+                status: 'error', 
+                error_log: error.message,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', variant.id)
+          )
+        );
       }
     }
-  } catch (supabaseError) {
-    console.error('Kritik hata:', supabaseError);
+  } catch (error) {
+    console.error('Critical error in createListing:', error);
   }
 };
 
-// Fonksiyonu başlat
-createListing();
+// Fonksiyonu çalıştır
+createListing()
+  .then(() => console.log('Process completed'))
+  .catch(err => console.error('Process failed:', err));
