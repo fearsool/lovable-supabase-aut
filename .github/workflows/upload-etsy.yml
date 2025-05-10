@@ -1,26 +1,29 @@
-name: Etsy Ürün Yükleme
+name: Günlük Etsy Ürün Yükleme (Varyasyonlu)
 
 on:
-  workflow_dispatch:  # Manuel tetikleme
+  schedule:
+    - cron: '0 7 * * *' # Her sabah 07:00'de çalışır (UTC)
+  workflow_dispatch: # Manuel tetikleme
 
 jobs:
-  upload:
+  upload-etsy:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Kodu GitHub’dan çek
-        uses: actions/checkout@v2
+      - uses: actions/checkout@v2
 
-      - name: Node.js kurulumu
-        uses: actions/setup-node@v2
+      - name: Node.js Kurulumu
+        uses: actions/setup-node@v3
         with:
-          node-version: '14'
+          node-version: '18'
 
-      - name: Bağımlılıkları yükle
+      - name: Bağımlılıkları Yükle
         run: npm install
 
       - name: Etsy'ye Ürün Yükle
+        run: node uploadToEtsy.js
         env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           ETSY_ACCESS_TOKEN: ${{ secrets.ETSY_ACCESS_TOKEN }}
           ETSY_SHOP_ID: ${{ secrets.ETSY_SHOP_ID }}
-        run: node uploadToEtsy.js
+
